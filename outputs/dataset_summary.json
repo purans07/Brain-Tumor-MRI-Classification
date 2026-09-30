@@ -1,0 +1,30 @@
+{
+  "total_images": 2443,
+  "classes": [
+    "glioma",
+    "meningioma",
+    "no_tumor",
+    "pituitary"
+  ],
+  "class_counts": {
+    "glioma": 805,
+    "meningioma": 545,
+    "no_tumor": 483,
+    "pituitary": 610
+  },
+  "split_counts": {
+    "test": 246,
+    "train": 1695,
+    "valid": 502
+  },
+  "corrupted_images": 0,
+  "exact_duplicate_files": 0,
+  "image_sizes": {
+    "(640, 640)": 2443
+  },
+  "channels": {
+    "3": 2443
+  },
+  "mean_brightness": 0.1716340612764979,
+  "mean_contrast": 0.1732038944026412
+}
