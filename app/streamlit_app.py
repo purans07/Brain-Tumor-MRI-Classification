@@ -15,7 +15,7 @@ from PIL import Image
 from src.config import CLASS_NAMES, MODEL_ROOT
 from src.predict import load_model, predict_image
 
-DEFAULT_MODEL = MODEL_ROOT / "efficientnet_b0_finetuned.best.keras"
+DEFAULT_MODEL = MODEL_ROOT / "efficientnet_b0_finetuned.h5"
 
 
 @st.cache_resource
