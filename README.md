@@ -55,7 +55,7 @@ streamlit run app/streamlit_app.py
 
 - `outputs/image_metadata.csv`: image-level dimensions, channels, brightness, contrast, split, and duplicate flag.
 - `outputs/dataset_summary.json`: measured dataset summary.
-- `outputs/figures/`: 15 meaningful charts, including class balance, image properties, galleries, horizontal/vertical flip examples, brightness/contrast examples, intensity distributions, and split composition.
+- `outputs/figures/`: 15 meaningful charts, including class balance, image properties, galleries, horizontal-flip examples, brightness/contrast examples, intensity distributions, and split composition.
 - `outputs/chart_interpretations.csv`: chart rationale, data-derived insight, and practical impact.
 - `outputs/model_results/model_comparison.csv`: executed one-epoch test-set comparison.
 - `outputs/gradcam/custom_cnn_gradcam_example.png`: example Grad-CAM overlay.

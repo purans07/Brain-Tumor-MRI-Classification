@@ -25,6 +25,8 @@ from src.predict import load_model, predict_image
 
 DEFAULT_MODEL = MODEL_ROOT / "efficientnet_b0_finetuned.h5"
 MODEL_LABEL = "EfficientNetB0 fine-tuned"
+MODEL_VERSION = "1.0.0"
+MODEL_INPUT = "224 × 224 RGB"
 TEST_ACCURACY = 0.6911
 TEST_MACRO_F1 = 0.6770
 
@@ -230,9 +232,11 @@ def render_sidebar() -> str:
         st.markdown("<div class='sidebar-brand'><span class='brand-mark'>✦</span><span>NeuroScan</span></div>", unsafe_allow_html=True)
         st.caption("MRI classification workspace")
         st.divider()
-        with st.expander("Advanced model settings"):
-            model_path = st.text_input("Checkpoint path", str(DEFAULT_MODEL), label_visibility="collapsed")
-            st.caption("Use this only when switching to another compatible Keras checkpoint.")
+        model_path = str(DEFAULT_MODEL)
+        with st.expander("Model information"):
+            st.caption(f"{MODEL_LABEL} · version {MODEL_VERSION}")
+            st.caption(f"Input: {MODEL_INPUT}")
+            st.caption("The production checkpoint is managed by the application.")
 
         st.markdown("**Workspace status**")
         if Path(model_path).exists():
@@ -357,7 +361,9 @@ def main() -> None:
             st.markdown(
                 f"""
                 **Architecture**<br>
-                {MODEL_LABEL}<br><br>
+                {MODEL_LABEL} · version {MODEL_VERSION}<br><br>
+                **Input**<br>
+                {MODEL_INPUT}<br><br>
                 **Classes**<br>
                 {', '.join(display_name(name) for name in CLASS_NAMES)}<br><br>
                 **Held-out test metrics**<br>

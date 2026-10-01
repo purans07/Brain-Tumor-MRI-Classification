@@ -20,7 +20,7 @@ The analysis script creates 15 charts in `outputs/figures/` and stores the expla
 
 ## Preprocessing and augmentation
 
-Images are resized to 224×224 for efficient batching. The custom CNN rescales inputs to [0, 1]. EfficientNet uses its application preprocessing. Training augmentation uses small horizontal and vertical flips, rotations, zoom, translations, brightness changes, and contrast changes. The augmentation examples are intentionally conservative because clinically meaningful structure should not be changed aggressively. The existing dataset split is retained to avoid leakage from re-splitting the supplied data.
+Images are resized to 224×224 for efficient batching. The custom CNN rescales inputs to [0, 1]. EfficientNet uses its application preprocessing. Training augmentation uses a small horizontal flip, rotations, zoom, translations, brightness changes, and contrast changes. Vertical flipping is excluded because it can invert anatomical orientation. The augmentation examples are intentionally conservative because clinically meaningful structure should not be changed aggressively. The existing dataset split is retained to avoid leakage from re-splitting the supplied data.
 
 ## Models and evaluation
 
