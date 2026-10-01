@@ -54,6 +54,10 @@ streamlit run app/streamlit_app.py
 - `models/`: generated `.keras` checkpoints and `.h5` exports after training.
 - `notebooks/Brain_Tumor_MRI_Image_Classification.ipynb`: end-to-end submission notebook.
 
+## Streamlit deployment
+
+Streamlit Community Cloud should use the `app/requirements.txt` runtime dependency file and **Python 3.12**. The app entrypoint is `app/streamlit_app.py`. The root `requirements.txt` remains the broader development and notebook environment.
+
 ## Streamlit features
 
 The NeuroScan interface provides a guided single-image workflow, batch prediction with CSV export, session-only scan history, confidence bands, downloadable JSON reports, a model card, checkpoint validation, and an always-visible clinical safety notice. Launch it with `streamlit run app/streamlit_app.py`.

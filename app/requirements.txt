@@ -1,0 +1,7 @@
+# Runtime dependencies for Streamlit Community Cloud.
+# Select Python 3.12 in Streamlit Advanced settings.
+streamlit==1.60.0
+tensorflow==2.16.2
+numpy==1.26.4
+pandas==2.2.3
+Pillow==10.4.0
