@@ -7,6 +7,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 # Streamlit executes files from the app directory. Add the project root so
 # the reusable src package works from both the CLI and the Streamlit runner.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -17,13 +19,30 @@ import pandas as pd
 import streamlit as st
 from PIL import Image, UnidentifiedImageError
 
-from src.config import CLASS_NAMES, MODEL_ROOT
+from src.config import CLASS_NAMES, MODEL_ROOT, OUTPUT_ROOT
+from src.explainability import make_gradcam_heatmap, overlay_gradcam
 from src.predict import load_model, predict_image
 
 DEFAULT_MODEL = MODEL_ROOT / "efficientnet_b0_finetuned.h5"
 MODEL_LABEL = "EfficientNetB0 fine-tuned"
 TEST_ACCURACY = 0.6911
 TEST_MACRO_F1 = 0.6770
+
+
+def load_benchmark_metrics() -> tuple[float, float]:
+    """Use freshly generated evaluation metrics when they are available."""
+
+    metrics_path = OUTPUT_ROOT / "model_results" / "efficientnet_b0_finetuned" / "summary_metrics.csv"
+    if metrics_path.exists():
+        try:
+            metrics = pd.read_csv(metrics_path).iloc[0]
+            return float(metrics["accuracy"]), float(metrics["macro_f1"])
+        except (KeyError, IndexError, ValueError, OSError):
+            pass
+    return TEST_ACCURACY, TEST_MACRO_F1
+
+
+BENCHMARK_ACCURACY, BENCHMARK_MACRO_F1 = load_benchmark_metrics()
 
 
 st.set_page_config(
@@ -51,6 +70,30 @@ def confidence_label(confidence: float) -> str:
     if confidence >= 0.60:
         return "Moderate confidence"
     return "Low confidence"
+
+
+def image_quality_report(image: Image.Image) -> dict:
+    """Return lightweight quality indicators before a scan is interpreted."""
+
+    rgb = image.convert("RGB")
+    grayscale = np.asarray(rgb.convert("L"), dtype=np.float32) / 255.0
+    mean_brightness = float(grayscale.mean())
+    contrast = float(grayscale.std())
+    warnings = []
+    width, height = rgb.size
+    if min(width, height) < 224:
+        warnings.append("The image is smaller than the model input and will be resized.")
+    if mean_brightness < 0.08 or mean_brightness > 0.92:
+        warnings.append("Brightness is unusually extreme; verify that the scan is visible and correctly exported.")
+    if contrast < 0.045:
+        warnings.append("Contrast is very low; the scan may be blank, compressed, or poorly exposed.")
+    return {
+        "width": width,
+        "height": height,
+        "brightness": mean_brightness,
+        "contrast": contrast,
+        "warnings": warnings,
+    }
 
 
 def render_probability_bars(probabilities: dict[str, float]) -> None:
@@ -93,6 +136,7 @@ def model_is_ready(model_path: str) -> bool:
 
 def analyze_image(uploaded_file, model):
     try:
+        uploaded_file.seek(0)
         image = Image.open(uploaded_file).convert("RGB")
     except (UnidentifiedImageError, OSError):
         st.error("This file could not be read as an image. Please upload a valid JPG, JPEG, or PNG file.")
@@ -100,7 +144,7 @@ def analyze_image(uploaded_file, model):
     return image, predict_image(model, image, CLASS_NAMES)
 
 
-def render_result(result: dict, filename: str) -> None:
+def render_result(result: dict, filename: str, image: Image.Image, model) -> None:
     predicted = display_name(result["class"])
     confidence = result["confidence"]
     band = confidence_label(confidence)
@@ -126,6 +170,31 @@ def render_result(result: dict, filename: str) -> None:
     st.markdown("#### Class probabilities")
     render_probability_bars(result["probabilities"])
 
+    quality = image_quality_report(image)
+    with st.expander("Image quality and scan details"):
+        q1, q2, q3 = st.columns(3)
+        q1.metric("Resolution", f"{quality['width']} × {quality['height']} px")
+        q2.metric("Brightness", f"{quality['brightness']:.1%}")
+        q3.metric("Contrast", f"{quality['contrast']:.1%}")
+        if quality["warnings"]:
+            for warning in quality["warnings"]:
+                st.warning(warning)
+        else:
+            st.success("Basic image-quality checks passed. This does not confirm clinical suitability.")
+
+    show_attention = st.checkbox("Show model attention map", key="show_gradcam", help="Grad-CAM highlights image regions that influenced the model. It is not a lesion boundary or a diagnosis.")
+    if show_attention:
+        try:
+            with st.spinner("Generating attention map…"):
+                heatmap, _, _ = make_gradcam_heatmap(
+                    np.asarray(image.resize((224, 224)), dtype=np.float32)[None, ...],
+                    model,
+                )
+                attention = overlay_gradcam(image, heatmap)
+            st.image(attention, caption="Grad-CAM attention map — explanatory only", use_container_width=True)
+        except Exception as exc:
+            st.info(f"The attention map is unavailable for this checkpoint: {exc}")
+
     if confidence < 0.60:
         st.warning("The model is uncertain. Treat this output as a screening aid only and request qualified clinical review.")
     else:
@@ -138,6 +207,13 @@ def render_result(result: dict, filename: str) -> None:
         "prediction": result["class"],
         "confidence": confidence,
         "probabilities": result["probabilities"],
+        "image": {
+            "width": quality["width"],
+            "height": quality["height"],
+            "brightness": quality["brightness"],
+            "contrast": quality["contrast"],
+            "quality_warnings": quality["warnings"],
+        },
         "medical_disclaimer": "Educational prototype only. Not a medical diagnosis or clinical decision system.",
     }
     st.download_button(
@@ -191,8 +267,8 @@ def main() -> None:
     )
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Model accuracy", "69.11%", help="Held-out test accuracy from the project evaluation.")
-    kpi2.metric("Macro F1", "0.677", help="Macro F1 across the four folder-defined classes.")
+    kpi1.metric("Model accuracy", f"{BENCHMARK_ACCURACY:.2%}", help="Held-out test accuracy from the project evaluation.")
+    kpi2.metric("Macro F1", f"{BENCHMARK_MACRO_F1:.3f}", help="Macro F1 across the four folder-defined classes.")
     kpi3.metric("Classes", "4")
     kpi4.metric("Input format", "JPG · PNG")
 
@@ -210,8 +286,11 @@ def main() -> None:
             st.caption("Maximum file size follows the Streamlit server configuration.")
             if uploaded is not None:
                 try:
+                    uploaded.seek(0)
                     preview = Image.open(uploaded).convert("RGB")
                     st.image(preview, caption=uploaded.name, use_container_width=True)
+                    quality = image_quality_report(preview)
+                    st.caption(f"{quality['width']} × {quality['height']} px · {uploaded.size / 1024:.1f} KB")
                 except (UnidentifiedImageError, OSError):
                     st.error("Preview unavailable for this file.")
 
@@ -222,9 +301,16 @@ def main() -> None:
                 if result is not None:
                     st.session_state.last_result = result
                     st.session_state.last_filename = uploaded.name
+                    uploaded.seek(0)
+                    st.session_state.last_image = Image.open(uploaded).convert("RGB")
                     st.session_state.scan_history.insert(0, prediction_record(uploaded.name, result))
             if st.session_state.get("last_result"):
-                render_result(st.session_state.last_result, st.session_state.get("last_filename", "uploaded image"))
+                render_result(
+                    st.session_state.last_result,
+                    st.session_state.get("last_filename", "uploaded image"),
+                    st.session_state.get("last_image", Image.new("RGB", (224, 224))),
+                    get_model(model_path),
+                )
             else:
                 st.markdown("<div class='empty-state'><div class='empty-icon'>◌</div><strong>Your result will appear here</strong><span>Upload an image and choose Analyze image to begin.</span></div>", unsafe_allow_html=True)
 
@@ -275,8 +361,9 @@ def main() -> None:
                 **Classes**<br>
                 {', '.join(display_name(name) for name in CLASS_NAMES)}<br><br>
                 **Held-out test metrics**<br>
-                Accuracy: **{TEST_ACCURACY:.2%}** · Macro F1: **{TEST_MACRO_F1:.3f}**
-                """
+                Accuracy: **{BENCHMARK_ACCURACY:.2%}** · Macro F1: **{BENCHMARK_MACRO_F1:.3f}**
+                """,
+                unsafe_allow_html=True,
             )
         with info_right:
             st.markdown("### Safe use checklist")
@@ -320,8 +407,84 @@ st.markdown(
     .empty-state strong { color: #334155; font-size: 1.05rem; }
     .empty-state.compact { min-height: 12rem; }
     .empty-icon { color: #93c5fd; font-size: 3rem; line-height: 1; }
-    div[data-testid="stMetric"] { padding: .75rem 1rem; border: 1px solid #e2e8f0; border-radius: .8rem; background: #ffffff; }
+    /* Keep text readable when Streamlit is running with a dark theme. */
+    [data-testid="stAppViewContainer"] { background: #0f1117; }
+    [data-testid="stAppViewContainer"] .block-container { color: #f8fafc; }
+    [data-testid="stAppViewContainer"] h2,
+    [data-testid="stAppViewContainer"] h3,
+    [data-testid="stAppViewContainer"] h4 { color: #f8fafc !important; }
+    [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"],
+    [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] * { color: #cbd5e1 !important; }
+    [data-testid="stAppViewContainer"] .stMarkdown p,
+    [data-testid="stAppViewContainer"] .stMarkdown li { color: #e2e8f0; }
+    [data-testid="stSidebar"] .stMarkdown p,
+    [data-testid="stSidebar"] .stMarkdown li,
+    [data-testid="stSidebar"] .stMarkdown strong { color: #334155 !important; }
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] h4 { color: #172033 !important; }
+    .hero p { color: #475569 !important; }
+    .hero h1 { color: #172033 !important; }
+
+    /* KPI cards must define both their surface and their foreground colors. */
+    div[data-testid="stMetric"] {
+      padding: .85rem 1rem;
+      border: 1px solid #cbd5e1;
+      border-radius: .8rem;
+      background: #ffffff;
+      color: #172033;
+    }
+    div[data-testid="stMetric"] [data-testid="stMetricLabel"],
+    div[data-testid="stMetric"] [data-testid="stMetricLabel"] *,
+    div[data-testid="stMetric"] label {
+      color: #475569 !important;
+      opacity: 1 !important;
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+    }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"],
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] * {
+      color: #172033 !important;
+      opacity: 1 !important;
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      word-break: normal !important;
+      font-size: clamp(1.2rem, 2.2vw, 2rem) !important;
+    }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] { overflow: visible !important; }
+    div[data-testid="stMetric"] [data-testid="stMetricDelta"],
+    div[data-testid="stMetric"] svg { color: #64748b !important; fill: #64748b !important; }
+
+    /* Improve readability of native Streamlit controls on the dark workspace. */
+    [data-testid="stFileUploader"] section,
+    [data-testid="stFileUploader"] section > div { border-color: #475569; background: #20232d; }
+    [data-testid="stFileUploader"] label,
+    [data-testid="stFileUploader"] small,
+    [data-testid="stFileUploader"] span { color: #e2e8f0 !important; }
+    [data-testid="stTabs"] button { color: #cbd5e1 !important; }
+    [data-testid="stTabs"] button[aria-selected="true"] { color: #ff6b6b !important; }
+    [data-testid="stProgress"] p { color: #cbd5e1 !important; }
+    [data-testid="stAlert"] { color: #172033; }
+    [data-testid="stAlert"] p { color: inherit !important; }
+    [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color: #475569 !important; }
+    [data-testid="stSidebar"] [data-testid="stAlert"] { color: #166534; }
     button[kind="primary"] { border-radius: .65rem; }
+    @media (max-width: 1200px) {
+      div[data-testid="stMetric"] { padding: .7rem .75rem; }
+      div[data-testid="stMetric"] [data-testid="stMetricValue"],
+      div[data-testid="stMetric"] [data-testid="stMetricValue"] * { font-size: 1.25rem !important; }
+    }
+    @media (max-width: 800px) {
+      .block-container { padding-left: 1rem; padding-right: 1rem; }
+      .hero { padding: 1.4rem; }
+      .hero h1 { font-size: 2.15rem; }
+      .hero p { font-size: .95rem; }
+      .notice { font-size: .84rem; }
+    }
     </style>
     """,
     unsafe_allow_html=True,

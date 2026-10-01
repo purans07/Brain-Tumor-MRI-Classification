@@ -6,6 +6,7 @@ __pycache__/
 Tumour dataset/
 models/*.h5
 models/*.keras
+!models/efficientnet_b0_finetuned.h5
 outputs/*.csv
 outputs/*.json
 outputs/figures/*.png

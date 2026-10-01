@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections import Counter
 from typing import Iterable
 
 from PIL import Image
@@ -29,6 +30,23 @@ def validate_image(path: Path) -> tuple[bool, str]:
         return True, ""
     except Exception as exc:
         return False, str(exc)
+
+
+def compute_class_weights(data_root: Path) -> dict[int, float]:
+    """Return balanced class weights from the training split.
+
+    The weights use only the training directory, never validation or test
+    images, so the evaluation remains an honest estimate of generalization.
+    """
+
+    train_root = data_root / "train"
+    counts = Counter()
+    for index, class_name in enumerate(CLASS_NAMES):
+        counts[index] = sum(1 for _ in image_paths(train_root / class_name))
+    total = sum(counts.values())
+    if not total or any(value == 0 for value in counts.values()):
+        raise ValueError("Every class must contain at least one training image.")
+    return {index: total / (len(CLASS_NAMES) * count) for index, count in counts.items()}
 
 
 def build_tf_datasets(data_root: Path, batch_size: int = 32):

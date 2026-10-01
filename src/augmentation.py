@@ -13,12 +13,14 @@ def build_augmentation():
 
     return tf.keras.Sequential(
         [
-            tf.keras.layers.RandomFlip("horizontal_and_vertical"),
-            tf.keras.layers.RandomRotation(0.05),
-            tf.keras.layers.RandomZoom(0.10),
-            tf.keras.layers.RandomTranslation(0.05, 0.05),
-            tf.keras.layers.RandomBrightness(0.10, value_range=(0, 255)),
-            tf.keras.layers.RandomContrast(0.10),
+            # Vertical flips can invert the anatomy and hurt generalization.
+            # Horizontal flipping is a safer approximation for this dataset.
+            tf.keras.layers.RandomFlip("horizontal"),
+            tf.keras.layers.RandomRotation(0.03),
+            tf.keras.layers.RandomZoom(0.08),
+            tf.keras.layers.RandomTranslation(0.03, 0.03),
+            tf.keras.layers.RandomBrightness(0.08, value_range=(0, 255)),
+            tf.keras.layers.RandomContrast(0.08),
         ],
         name="mri_augmentation",
     )

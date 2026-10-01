@@ -29,13 +29,21 @@ Generate metadata and the 15 required EDA figures:
 python -m src.analysis
 ```
 
-Train both models. The EfficientNet builder attempts ImageNet weights and falls back to random initialization only when the weights are unavailable, with a warning:
+Train both models. The EfficientNet builder attempts ImageNet weights and falls back to random initialization only when the weights are unavailable, with a warning. The training path uses conservative MRI augmentation and class-balanced weights derived only from the training split.
 
 ```bash
 python -m src.train --epochs 10
 ```
 
-Evaluate a saved model from a Python session using `src.data_loader.build_tf_datasets` and `src.evaluate.evaluate_keras_model`. The metrics utility saves accuracy, macro precision, macro recall, macro F1, per-class metrics, and a confusion matrix.
+For a stronger EfficientNet run, train the classifier head, fine-tune the top backbone layers, and evaluate only after the final checkpoint is selected:
+
+```bash
+python -m src.train --models efficientnet_b0 --epochs 20
+python -m src.fine_tune --checkpoint models/efficientnet_b0.best.keras --epochs 8 --layers 40
+python -m src.run_evaluation --model models/efficientnet_b0_finetuned.h5
+```
+
+Evaluate a saved model from a Python session using `src.data_loader.build_tf_datasets` and `src.evaluate.evaluate_keras_model`. The metrics utility saves accuracy, macro precision, macro recall, macro F1, per-class metrics, and a confusion matrix. The app reads the generated fine-tuned summary automatically when it is available; otherwise it displays the checked benchmark fallback.
 
 Launch the demo after a model has been trained:
 
@@ -58,9 +66,11 @@ streamlit run app/streamlit_app.py
 
 Streamlit Community Cloud should use the `app/requirements.txt` runtime dependency file and **Python 3.12**. The app entrypoint is `app/streamlit_app.py`. The root `requirements.txt` remains the broader development and notebook environment.
 
+The deployment checkpoint is `models/efficientnet_b0_finetuned.h5`. It is intentionally allowed by `.gitignore` because the deployed app needs the model artifact after GitHub clones the repository. The checkpoint is below GitHub's 100 MB single-file limit; include it in the commit that deploys the app.
+
 ## Streamlit features
 
-The NeuroScan interface provides a guided single-image workflow, batch prediction with CSV export, session-only scan history, confidence bands, downloadable JSON reports, a model card, checkpoint validation, and an always-visible clinical safety notice. Launch it with `streamlit run app/streamlit_app.py`.
+The NeuroScan interface provides a guided single-image workflow, batch prediction with CSV export, session-only scan history, confidence bands, image-quality checks, scan metadata, optional Grad-CAM attention maps, downloadable JSON reports, a model card, checkpoint validation, and an always-visible clinical safety notice. Launch it with `streamlit run app/streamlit_app.py`.
 
 ## Submission assets
 
