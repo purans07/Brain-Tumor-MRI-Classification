@@ -54,6 +54,10 @@ streamlit run app/streamlit_app.py
 - `models/`: generated `.keras` checkpoints and `.h5` exports after training.
 - `notebooks/Brain_Tumor_MRI_Image_Classification.ipynb`: end-to-end submission notebook.
 
+## Streamlit features
+
+The NeuroScan interface provides a guided single-image workflow, batch prediction with CSV export, session-only scan history, confidence bands, downloadable JSON reports, a model card, checkpoint validation, and an always-visible clinical safety notice. Launch it with `streamlit run app/streamlit_app.py`.
+
 ## Submission assets
 
 - `outputs/brain_tumor_classifier_demo.mp4`: short project walkthrough covering the dataset profile, model comparison, Grad-CAM, and Streamlit deployment.
