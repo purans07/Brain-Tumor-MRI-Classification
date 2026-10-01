@@ -407,16 +407,18 @@ st.markdown(
     .empty-state strong { color: #334155; font-size: 1.05rem; }
     .empty-state.compact { min-height: 12rem; }
     .empty-icon { color: #93c5fd; font-size: 3rem; line-height: 1; }
-    /* Keep text readable when Streamlit is running with a dark theme. */
-    [data-testid="stAppViewContainer"] { background: #0f1117; }
-    [data-testid="stAppViewContainer"] .block-container { color: #f8fafc; }
+    /* Fixed light application theme; it is independent of browser/system mode. */
+    .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stHeader"] { background: #f8fafc !important; }
+    [data-testid="stAppViewContainer"] .block-container { color: #172033; }
     [data-testid="stAppViewContainer"] h2,
     [data-testid="stAppViewContainer"] h3,
-    [data-testid="stAppViewContainer"] h4 { color: #f8fafc !important; }
+    [data-testid="stAppViewContainer"] h4 { color: #172033 !important; }
     [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"],
-    [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] * { color: #cbd5e1 !important; }
+    [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] * { color: #64748b !important; }
     [data-testid="stAppViewContainer"] .stMarkdown p,
-    [data-testid="stAppViewContainer"] .stMarkdown li { color: #e2e8f0; }
+    [data-testid="stAppViewContainer"] .stMarkdown li { color: #475569; }
     [data-testid="stSidebar"] .stMarkdown p,
     [data-testid="stSidebar"] .stMarkdown li,
     [data-testid="stSidebar"] .stMarkdown strong { color: #334155 !important; }
@@ -458,21 +460,33 @@ st.markdown(
     div[data-testid="stMetric"] [data-testid="stMetricDelta"],
     div[data-testid="stMetric"] svg { color: #64748b !important; fill: #64748b !important; }
 
-    /* Improve readability of native Streamlit controls on the dark workspace. */
+    /* Keep native Streamlit controls aligned with the fixed light theme. */
     [data-testid="stFileUploader"] section,
-    [data-testid="stFileUploader"] section > div { border-color: #475569; background: #20232d; }
+    [data-testid="stFileUploader"] section > div { border-color: #cbd5e1; background: #f8fafc; }
     [data-testid="stFileUploader"] label,
     [data-testid="stFileUploader"] small,
-    [data-testid="stFileUploader"] span { color: #e2e8f0 !important; }
-    [data-testid="stTabs"] button { color: #cbd5e1 !important; }
+    [data-testid="stFileUploader"] span { color: #475569 !important; }
+    [data-testid="stTabs"] button { color: #475569 !important; }
     [data-testid="stTabs"] button[aria-selected="true"] { color: #ff6b6b !important; }
-    [data-testid="stProgress"] p { color: #cbd5e1 !important; }
+    [data-testid="stProgress"] p { color: #475569 !important; }
     [data-testid="stAlert"] { color: #172033; }
     [data-testid="stAlert"] p { color: inherit !important; }
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color: #475569 !important; }
     [data-testid="stSidebar"] [data-testid="stAlert"] { color: #166534; }
-    button[kind="primary"] { border-radius: .65rem; }
+    [data-testid="stSidebar"] button[kind="secondary"],
+    [data-testid="stSidebar"] button:not([kind="primary"]) {
+      color: #172033 !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #ffffff !important;
+    }
+    button[kind="primary"] {
+      border-radius: .65rem;
+      color: #ffffff !important;
+      background: #ef4444 !important;
+      border-color: #ef4444 !important;
+    }
+    button[kind="primary"]:hover { background: #dc2626 !important; border-color: #dc2626 !important; }
     @media (max-width: 1200px) {
       div[data-testid="stMetric"] { padding: .7rem .75rem; }
       div[data-testid="stMetric"] [data-testid="stMetricValue"],
